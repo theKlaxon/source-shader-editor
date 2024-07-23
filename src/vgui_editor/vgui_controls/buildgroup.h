@@ -92,7 +92,9 @@ public:
 	// Get the resource file name used
 	virtual const char *GetResourceName(void) { return m_pResourceName; }
 
-	virtual void PanelAdded(Panel* panel);
+	//virtual void PanelAdded(Panel* panel);
+	// not in new vtable
+	void PanelAdded(Panel* panel);
 
 	virtual bool MousePressed(MouseCode code,Panel* panel);
 	virtual bool MouseReleased(MouseCode code,Panel* panel);

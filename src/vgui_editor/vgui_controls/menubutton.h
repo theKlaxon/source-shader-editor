@@ -1,4 +1,4 @@
-//========= Copyright © 1996-2005, Valve Corporation, All rights reserved. ============//
+//========= Copyright Valve Corporation, All rights reserved. ============//
 //
 // Purpose: 
 //
@@ -33,7 +33,7 @@ public:
 	~MenuButton();
 
 	// functions designed to be overriden
-	virtual void OnShowMenu(Menu *menu);
+	virtual void OnShowMenu(Menu *menu) {}
 	virtual void OnHideMenu(Menu *menu) {}
 	virtual int	 OnCheckMenuItemCount() { return 0; }
 

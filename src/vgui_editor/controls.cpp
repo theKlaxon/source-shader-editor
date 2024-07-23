@@ -1,4 +1,4 @@
-//===== Copyright © 1996-2005, Valve Corporation, All rights reserved. ======//
+//========= Copyright Valve Corporation, All rights reserved. ============//
 //
 // Purpose: 
 //
@@ -12,16 +12,6 @@
 #include "tier0/memdbgon.h"
 
 extern int g_nYou_Must_Add_Public_Vgui_Controls_Vgui_ControlsCpp_To_Your_Project;
-
-class CircularProgressBar;
-CircularProgressBar *g_CircularProgressBarLinkerHack;
-
-namespace vgui
-{
-	class Slider;
-}
-
-vgui::Slider *g_SliderLinkerHack;
 
 namespace vgui
 {
@@ -39,7 +29,7 @@ bool VGui_InitInterfacesList( const char *moduleName, CreateInterfaceFn *factory
 
 	// If you hit this error, then you need to include memoverride.cpp in the project somewhere or else
 	// you'll get crashes later when vgui_controls allocates KeyValues and vgui tries to delete them.
-#if !defined(NO_MALLOC_OVERRIDE)
+#if !defined(NO_MALLOC_OVERRIDE) && defined( WIN32 )
 	if ( _heapmin() != 1 )
 	{
 		Assert( false );

@@ -1,4 +1,4 @@
-//===== Copyright © 1996-2005, Valve Corporation, All rights reserved. ======//
+//========= Copyright Valve Corporation, All rights reserved. ============//
 //
 // Purpose: Declaration of FileOpenDialog class, a generic open/save as file dialog
 //
@@ -111,8 +111,6 @@ protected:
 	MESSAGE_FUNC( OnInputCanceled, "InputCanceled" );
 	MESSAGE_FUNC_PARAMS( OnInputCompleted, "InputCompleted", data );
 
-	MESSAGE_FUNC_PARAMS( OnCheckButtonChecked, "CheckButtonChecked", pData );
-
 private:
 	// Necessary because we have 2 constructors
 	void Init( const char *title, KeyValues *pContextKeyValues );
@@ -145,23 +143,16 @@ private:
 	vgui::Button		*m_pOpenInExplorerButton;
 	vgui::ImagePanel 	*m_pFolderIcon;
 	vgui::Label			*m_pFileTypeLabel;
-	vgui::CheckButton	*m_pCheckFullFileSystem;
 
 	KeyValues			*m_pContextKeyValues;
 
 	char m_szLastPath[1024];
-	char pFullPath_TMPHACK[MAX_PATH * 4];
 	unsigned short m_nStartDirContext;
 	FileOpenDialogType_t m_DialogType;
 	bool m_bFileSelected : 1;
 
 	VPANEL				m_SaveModal;
 	vgui::DHANDLE< vgui::InputDialog >	m_hInputDialog;
-
-	bool m_bLockedToMod;
-	const char *GetPathID();
-	void GetLocalPath( const char *pszFullPath, char *pszLocalPath, int maxLen );
-	void BeginIterate( const char *szDir, const char *pszFilter, ListPanel *pList, int iFlags );
 };
 
 } // namespace vgui

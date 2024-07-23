@@ -261,6 +261,14 @@ Color Image::GetColor()
 	return _color;
 }
 
+float Image::GetTall() {
+	return _size[1];
+}
+
+float Image::GetWide() {
+	return _size[0];
+}
+
 bool Image::Evict()
 {
 	return false;

@@ -8,8 +8,6 @@
 #include "vgui_controls/pch_vgui_controls.h"
 #include "vgui/ilocalize.h"
 
-#include "vgui_editor_platform.h"
-
 // memdbgon must be the last include file in a .cpp file
 #include "tier0/memdbgon.h"
 
@@ -21,6 +19,10 @@ enum
 };
 
 using namespace vgui;
+
+#ifndef max
+#define max(a,b)            (((a) > (b)) ? (a) : (b))
+#endif
 
 namespace vgui
 {
@@ -335,7 +337,7 @@ const wchar_t *RichText::ResolveLocalizedTextAndVariables( char const *pchLookup
 	{
 		// try lookup in localization tables
 		StringIndex_t index = g_pVGuiLocalize->FindIndex( pchLookup + 1 );
-		if ( index == INVALID_LOCALIZE_STRING_INDEX )
+		if ( index == INVALID_STRING_INDEX )
 		{
 /*			// if it's not found, maybe it's a special expanded variable - look for an expansion
 			char rgchT[MAX_PATH];
@@ -360,7 +362,7 @@ const wchar_t *RichText::ResolveLocalizedTextAndVariables( char const *pchLookup
 		}
 
 		// see if we have a valid string
-		if ( index != INVALID_LOCALIZE_STRING_INDEX )
+		if ( index != INVALID_STRING_INDEX )
 		{
 			wchar_t *format = g_pVGuiLocalize->GetValueByIndex( index );
 			Assert( format );
@@ -2267,7 +2269,7 @@ void RichText::ApplySettings(KeyValues *inResourceData)
 {
 	BaseClass::ApplySettings(inResourceData);
 	SetMaximumCharCount(inResourceData->GetInt("maxchars", -1));
-	SetVerticalScrollbar(inResourceData->GetBool("scrollbar", true));
+	SetVerticalScrollbar(inResourceData->GetInt("scrollbar", 1));
 
 	// get the starting text, if any
 	const char *text = inResourceData->GetString("text", "");
@@ -2276,28 +2278,8 @@ void RichText::ApplySettings(KeyValues *inResourceData)
 		delete [] m_pszInitialText;
 		int len = Q_strlen(text) + 1;
 		m_pszInitialText = new char[ len ];
-
-		const char *reader = text;
-		char *writer = m_pszInitialText;
-
-		for ( int i = 0; i < (len-1); i++ )
-		{
-			bool bInsertCLR = *reader == '\\' && *(reader+1) == 'n';
-			if ( bInsertCLR )
-			{
-				*writer = '\n';
-				reader++;
-			}
-			else
-				*writer = *reader;
-
-			reader++;
-			writer++;
-		}
-		*writer = '\0';
-
-		//Q_strncpy( m_pszInitialText, text, len );
-		SetText(m_pszInitialText);
+		Q_strncpy( m_pszInitialText, text, len );
+		SetText(text);
 	}
 	else
 	{
@@ -2333,53 +2315,7 @@ void RichText::GetSettings(KeyValues *outResourceData)
 	outResourceData->SetInt("scrollbar", _vertScrollBar->IsVisible() );
 	if (m_pszInitialText)
 	{
-		CUtlVector< char* >hSnippetsOut;
-
-		int len = Q_strlen( m_pszInitialText );
-		char *textcopy = new char[ len + 1 ];
-		Q_strcpy( textcopy, m_pszInitialText );
-
-		char *lastSnippetStart = textcopy;
-		char *readcopy = textcopy;
-		for ( int i = 0; i < len; i++ )
-		{
-			bool bGotCLR = *readcopy == '\n';
-			if (  bGotCLR|| (i == (len-1)) )
-			{
-				if ( bGotCLR )
-					*readcopy = '\0';
-				char *entry = new char[ Q_strlen( lastSnippetStart ) + 1 ];
-				Q_strcpy( entry, lastSnippetStart );
-				hSnippetsOut.AddToTail( entry );
-
-				lastSnippetStart = readcopy + 1;
-			}
-
-			readcopy++;
-		}
-
-		int completeLength = 0;
-		for ( int i = 0; i < hSnippetsOut.Count(); i++ )
-			completeLength += Q_strlen( hSnippetsOut[i] ) + 2; //(i==(hSnippetsOut.Count()-1)) ? 1 : 2;
-
-		char *targettext = new char[ completeLength ];
-		targettext[0] = '\0';
-		for ( int i = 0; i < hSnippetsOut.Count(); i++ )
-		{
-			Q_strcat( targettext, hSnippetsOut[i], completeLength );
-			if ( i < (hSnippetsOut.Count()-1) )
-				Q_strcat( targettext, "\\n", completeLength );
-		}
-
-		outResourceData->SetString("text", targettext);
-
-
-		for ( int i = 0; i < hSnippetsOut.Count(); i++ )
-			delete [] hSnippetsOut[i];
-		hSnippetsOut.Purge();
-		delete [] targettext;
-
-		//outResourceData->SetString("text", m_pszInitialText);
+		outResourceData->SetString("text", m_pszInitialText);
 	}
 }
 
@@ -2512,12 +2448,12 @@ int RichText::ParseTextStringForUrls( const char *text, int startPos, char *pchU
 			// get the url
 			i += Q_strlen( "<a href=" );
 			const char *pchURLEnd = Q_strstr( text + i, ">" );
-			Q_strncpy( pchURL, text + i, min( pchURLEnd - text - i + 1, cchURL ) ); 
+			Q_strncpy( pchURL, text + i, MIN( pchURLEnd - text - i + 1, cchURL ) ); 
 			i += ( pchURLEnd - text - i + 1 );
             
 			// get the url text
 			pchURLEnd = Q_strstr( text, "</a>" );
-			Q_strncpy( pchURLText, text + i, min( pchURLEnd - text - i + 1, cchURLText ) ); 
+			Q_strncpy( pchURLText, text + i, MIN( pchURLEnd - text - i + 1, cchURLText ) ); 
 			i += ( pchURLEnd - text - i );
 			i += Q_strlen( "</a>" );
 
@@ -2632,6 +2568,21 @@ bool RichText::IsScrollbarVisible()
 void RichText::SetUnderlineFont( HFont font )
 {
 	m_hFontUnderline = font;
+}
+
+bool RichText::IsAllTextAlphaZero() const
+{
+	return m_bAllTextAlphaIsZero;
+}
+
+bool RichText::HasText() const
+{
+	int c = m_TextStream.Count();
+	if (c == 0)
+	{
+		return false;
+	}
+	return true;
 }
 
 #ifdef DBGFLAG_VALIDATE

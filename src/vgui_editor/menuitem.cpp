@@ -1,4 +1,4 @@
-//========= Copyright © 1996-2005, Valve Corporation, All rights reserved. ============//
+//========= Copyright Valve Corporation, All rights reserved. ============//
 //
 // Purpose: 
 //
@@ -14,8 +14,6 @@
 #include <vgui_controls/Menu.h>
 #include <vgui_controls/MenuItem.h>
 #include <vgui_controls/TextImage.h>
-
-#include "vgui_editor_platform.h"
 
 // memdbgon must be the last include file in a .cpp file!!!
 #include <tier0/memdbgon.h>
@@ -135,16 +133,13 @@ MenuItem::~MenuItem()
 //-----------------------------------------------------------------------------
 void MenuItem::Init( void )
 {
-	m_bIgnoreFirstClick = false;
-	m_bFirstClick = false;
-	m_iImage = -1;
 	m_pCascadeArrow	= NULL;
 	m_pCheck = NULL;
 
 	if (m_pCascadeMenu)
 	{
 		m_pCascadeMenu->SetParent(this);
-		m_pCascadeArrow = new TextImage ("4");	// this makes a right pointing arrow.
+		m_pCascadeArrow = new TextImage("4");	// this makes a right pointing arrow.
 
 		m_pCascadeMenu->AddActionSignalTarget(this);
 	}
@@ -184,31 +179,6 @@ void MenuItem::PerformLayout()
 	{
 		m_pCascadeArrow->SetColor(GetButtonFgColor());
 	}
-}
-
-void MenuItem::SetImage( int i )
-{
-	m_iImage = i;
-}
-
-bool MenuItem::HasImage()
-{
-	return m_iImage >= 0;
-}
-
-int MenuItem::GetImage()
-{
-	return m_iImage;
-}
-
-bool MenuItem::ShouldIgnoreFirstClick()
-{
-	return m_bIgnoreFirstClick;
-}
-
-void MenuItem::SetIgnoreFirstClick( bool bEnable )
-{
-	m_bIgnoreFirstClick = bEnable;
 }
 
 //-----------------------------------------------------------------------------
@@ -311,8 +281,6 @@ void MenuItem::ArmItem()
 //-----------------------------------------------------------------------------
 void MenuItem::DisarmItem()
 {
-	m_bFirstClick = false;
-
 	// normal behaviour is that the button becomes unarmed
 	// do not unarm if there is a cascading menu. CloseCascadeMenu handles this.
 	// and the menu handles it since we close at different times depending
@@ -353,13 +321,6 @@ void MenuItem::OnKillFocus()
 //-----------------------------------------------------------------------------
 void MenuItem::FireActionSignal()
 {
-	if ( ShouldIgnoreFirstClick() && !m_bFirstClick )
-	{
-		GetParentMenu()->SetCurrentlyHighlightedItem( GetParentMenu()->m_MenuItems.Find( this ) );
-		m_bFirstClick = true;
-		return;
-	}
-
 	// cascading menus items don't trigger the parent menu to disappear
 	// (they trigger the cascading menu to open/close when cursor is moved over/off them)
 	if (!m_pCascadeMenu) 
@@ -640,16 +601,6 @@ void MenuItem::SetCurrentKeyBinding( char const *keyName )
 
 void MenuItem::Paint()
 {
-	if ( HasImage() )
-	{
-		int iTall = GetTall();
-
-		surface()->DrawSetColor( Color(255,255,255,255) );
-		surface()->DrawSetTexture( GetImage() );
-		surface()->DrawTexturedRect( 0, 0, iTall, iTall );
-	}
-
-
 	BaseClass::Paint();
 	if ( !m_pCurrentKeyBinding )
 		return;
@@ -692,5 +643,5 @@ void MenuItem::GetContentSize( int& cw, int &ch )
 	m_pCurrentKeyBinding->GetSize( iw, ih );
 
 	cw += iw + KEYBINDING_INSET;
-	ch = max( ch, ih );
+	ch = MAX( ch, ih );
 }

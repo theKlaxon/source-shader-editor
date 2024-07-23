@@ -1,4 +1,4 @@
-//========= Copyright © 1996-2005, Valve Corporation, All rights reserved. ============//
+//========= Copyright Valve Corporation, All rights reserved. ============//
 //
 // Purpose: 
 //
@@ -6,8 +6,6 @@
 //=============================================================================//
 
 #include "vgui_controls/pch_vgui_controls.h"
-
-#include "vgui_editor_platform.h"
 
 // memdbgon must be the last include file in a .cpp file
 #include "tier0/memdbgon.h"
@@ -70,6 +68,7 @@ Menu::Menu(Panel *parent, const char *panelName) : Panel(parent, panelName)
 	MakePopup(false);
 	SetParent(parent);
 	_recalculateWidth = true;
+	m_bUseMenuManager = true;
 	m_iInputMode = MOUSE;
 	m_iCheckImageWidth = 0;
 	m_iActivatedItem = 0;
@@ -86,6 +85,12 @@ Menu::Menu(Panel *parent, const char *panelName) : Panel(parent, panelName)
 		m_iMenuItemHeight =  DEFAULT_MENU_ITEM_HEIGHT;
 	}
 	m_hItemFont = INVALID_FONT;
+
+
+	m_eTypeAheadMode = COMPAT_MODE;
+	m_szTypeAheadBuf[0] = '\0';
+	m_iNumTypeAheadChars = 0;
+	m_fLastTypeAheadTime = 0.0f;
 }
 
 //-----------------------------------------------------------------------------
@@ -144,6 +149,12 @@ int Menu::AddMenuItem( MenuItem *panel )
 			ti->SetUseFallbackFont( m_bUseFallbackFont, m_hFallbackItemFont );
 		}
 	}
+
+	if ( panel->GetHotKey() )
+	{
+		SetTypeAheadMode( HOT_KEY_MODE );
+	}
+
 	return itemID;
 }
 
@@ -758,7 +769,7 @@ void Menu::PerformLayout()
 		AddScrollBar();
 
 		// This fills in m_VisibleSortedItems as needed
-		MakeItemsVisibleInScrollRange( m_iNumVisibleLines, min( fullHeightWouldRequire, workTall ) );
+		MakeItemsVisibleInScrollRange( m_iNumVisibleLines, MIN( fullHeightWouldRequire, workTall ) );
 	}
 	else
 	{
@@ -1012,12 +1023,12 @@ void Menu::PositionCascadingMenu()
 		// orignalX - width of the parentmenuitem - width of this menu.
 		// add 2 pixels to offset one pixel onto the parent menu.
 		x -= (parentWide + wide);
-		//x -= 0;
+		x -= 2;
 	}
 	else
 	{
 		// alignment move it in the amount of the insets.
-		//x += 0;
+		x += 1;
 	}
 
 	if ( y + tall > workY + workTall )
@@ -1026,11 +1037,11 @@ void Menu::PositionCascadingMenu()
 		int pixelsOffBottom = ( y + tall ) - lastWorkY;
 
 		y -= pixelsOffBottom;
-		//y -= 2;
+		y -= 2;
 	}
 	else
 	{
-		//y -= 1;
+		y -= 1;
 	}
 	SetPos(x, y);
 	
@@ -1079,10 +1090,7 @@ void Menu::MakeItemsVisibleInScrollRange( int maxVisibleItems, int nNumPixelsAva
 
 	int tall = 0;
 
-	int startVisibleItem = m_pScroller->GetValue();
-	int visibleItemIndex = -1;
-	int startItem = 0;
-
+	int startItem = m_pScroller->GetValue();
 	Assert( startItem >= 0 );
 	do
 	{
@@ -1092,14 +1100,6 @@ void Menu::MakeItemsVisibleInScrollRange( int maxVisibleItems, int nNumPixelsAva
 		int itemId = m_SortedItems[ startItem ];
 
 		if ( !m_MenuItems[ itemId ]->IsVisible() )
-		{
-			++startItem;
-			continue;
-		}
-
-		visibleItemIndex++;
-
-		if ( startVisibleItem > visibleItemIndex )
 		{
 			++startItem;
 			continue;
@@ -1182,6 +1182,14 @@ void Menu::SetNumberOfVisibleItems( int numItems )
 //-----------------------------------------------------------------------------
 // Purpose: 
 //-----------------------------------------------------------------------------
+void Menu::EnableUseMenuManager( bool bUseMenuManager )
+{
+	m_bUseMenuManager = bUseMenuManager;
+}
+
+//-----------------------------------------------------------------------------
+// Purpose: 
+//-----------------------------------------------------------------------------
 MenuItem *Menu::GetMenuItem(int itemID)
 {
 	if ( !m_MenuItems.IsValidIndex(itemID) )
@@ -1237,8 +1245,10 @@ void Menu::OnCommand( const char *command )
 //-----------------------------------------------------------------------------
 // Purpose: Handle key presses, Activate shortcuts
 //-----------------------------------------------------------------------------
-void Menu::OnKeyCodeTyped(KeyCode code)
+void Menu::OnKeyCodeTyped(KeyCode keycode)
 {
+	vgui::KeyCode code = GetBaseButtonCode( keycode );
+
 	// Don't allow key inputs when disabled!
 	if ( !IsEnabled() )
 		return;
@@ -1246,8 +1256,12 @@ void Menu::OnKeyCodeTyped(KeyCode code)
 	bool alt = (input()->IsKeyDown(KEY_LALT) || input()->IsKeyDown(KEY_RALT));
 	if (alt)
 	{
-		BaseClass::OnKeyCodeTyped( code );
-		PostActionSignal(new KeyValues("MenuClose"));
+		BaseClass::OnKeyCodeTyped( keycode );
+		// Ignore alt when in combobox mode
+		if (m_eTypeAheadMode != TYPE_AHEAD_MODE)
+		{
+			PostActionSignal(new KeyValues("MenuClose"));
+		}
 	}
 
 	switch (code)
@@ -1270,6 +1284,10 @@ void Menu::OnKeyCodeTyped(KeyCode code)
 			{
 				m_MenuItems[m_iCurrentlySelectedItemID]->ArmItem();
 			}
+			else
+			{
+				BaseClass::OnKeyCodeTyped( keycode ); // chain up
+			}
 			break;
 		}
 	case KEY_DOWN:
@@ -1280,6 +1298,10 @@ void Menu::OnKeyCodeTyped(KeyCode code)
 			if ( m_MenuItems.IsValidIndex( m_iCurrentlySelectedItemID ) )
 			{
 				m_MenuItems[m_iCurrentlySelectedItemID]->ArmItem();	
+			}
+			else
+			{
+				BaseClass::OnKeyCodeTyped( keycode ); // chain up
 			}
 			break;
 		}
@@ -1297,12 +1319,12 @@ void Menu::OnKeyCodeTyped(KeyCode code)
 				}
 				else
 				{
-					BaseClass::OnKeyCodeTyped( code );
+					BaseClass::OnKeyCodeTyped( keycode );
 				}
 			}
 			else
 			{
-				BaseClass::OnKeyCodeTyped( code );
+				BaseClass::OnKeyCodeTyped( keycode );
 			}
 			break;
 		}
@@ -1317,7 +1339,7 @@ void Menu::OnKeyCodeTyped(KeyCode code)
 			}
 			else
 			{
-				BaseClass::OnKeyCodeTyped( code );
+				BaseClass::OnKeyCodeTyped( keycode );
 			}
 			break;
 		}
@@ -1331,7 +1353,79 @@ void Menu::OnKeyCodeTyped(KeyCode code)
 			}
 			else
 			{
-				BaseClass::OnKeyCodeTyped( code ); // chain up
+				BaseClass::OnKeyCodeTyped( keycode ); // chain up
+			}
+			break;
+		}
+
+	case KEY_PAGEUP:
+		{
+			if ( m_iNumVisibleLines > 1 )
+			{
+				if ( m_iCurrentlySelectedItemID < m_iNumVisibleLines )
+				{
+					MoveAlongMenuItemList( MENU_UP * m_iCurrentlySelectedItemID, 0 );
+				}
+				else
+				{
+					MoveAlongMenuItemList(MENU_UP * m_iNumVisibleLines - 1, 0);
+				}
+			}
+			else
+			{
+				MoveAlongMenuItemList(MENU_UP, 0);
+			}
+
+			if ( m_MenuItems.IsValidIndex( m_iCurrentlySelectedItemID ) )
+			{
+				m_MenuItems[m_iCurrentlySelectedItemID]->ArmItem();	
+			}
+			break;
+		}
+
+
+	case KEY_PAGEDOWN:
+		{
+			if ( m_iNumVisibleLines > 1 )
+			{
+				if ( m_iCurrentlySelectedItemID + m_iNumVisibleLines >= GetItemCount() )
+				{
+					MoveAlongMenuItemList(MENU_DOWN * ( GetItemCount() - m_iCurrentlySelectedItemID - 1), 0);
+				}
+				else
+				{
+					MoveAlongMenuItemList(MENU_DOWN * m_iNumVisibleLines - 1, 0);
+				}
+			}
+			else
+			{
+				MoveAlongMenuItemList(MENU_DOWN, 0);
+			}
+
+			if ( m_MenuItems.IsValidIndex( m_iCurrentlySelectedItemID ) )
+			{
+				m_MenuItems[m_iCurrentlySelectedItemID]->ArmItem();	
+			}
+			break;
+		}
+
+	case KEY_HOME:
+		{
+			MoveAlongMenuItemList( MENU_UP * m_iCurrentlySelectedItemID, 0 );
+			if ( m_MenuItems.IsValidIndex( m_iCurrentlySelectedItemID ) )
+			{
+				m_MenuItems[m_iCurrentlySelectedItemID]->ArmItem();	
+			}
+			break;
+		}
+
+
+	case KEY_END:
+		{
+			MoveAlongMenuItemList(MENU_DOWN * ( GetItemCount() - m_iCurrentlySelectedItemID - 1), 0);
+			if ( m_MenuItems.IsValidIndex( m_iCurrentlySelectedItemID ) )
+			{
+				m_MenuItems[m_iCurrentlySelectedItemID]->ArmItem();	
 			}
 			break;
 		}
@@ -1340,6 +1434,81 @@ void Menu::OnKeyCodeTyped(KeyCode code)
 	// don't chain back
 }
 
+void Menu::OnHotKey(wchar_t unichar)
+{
+	// iterate the menu items looking for one with the matching hotkey
+	FOR_EACH_LL( m_MenuItems, i )
+	{
+		MenuItem *panel = m_MenuItems[i];
+		if (panel->IsVisible())
+		{
+			Panel *hot = panel->HasHotkey(unichar);
+			if (hot)
+			{
+				// post a message to the menuitem telling it it's hotkey was pressed
+				PostMessage(hot, new KeyValues("Hotkey"));
+				return;
+			}
+			// if the menuitem is a cascading menuitem and it is open, check its hotkeys too
+			Menu *cascadingMenu = panel->GetMenu();
+			if (cascadingMenu && cascadingMenu->IsVisible())
+			{
+				cascadingMenu->OnKeyTyped(unichar);
+			}
+		}
+	}
+}
+
+void Menu::OnTypeAhead(wchar_t unichar)
+{
+	// Don't do anything if the menu is empty since there cannot be a selected item.
+	if ( m_MenuItems.Count() <= 0)
+		return;
+
+	// expire the type ahead buffer after 0.5 seconds
+	double tCurrentTime = Sys_FloatTime();
+	if ( (tCurrentTime - m_fLastTypeAheadTime) > 0.5f )
+	{
+		m_iNumTypeAheadChars = 0;
+		m_szTypeAheadBuf[0] = '\0';
+	}
+	m_fLastTypeAheadTime = tCurrentTime;
+
+	// add current character to the type ahead buffer
+	if ( m_iNumTypeAheadChars+1 < TYPEAHEAD_BUFSIZE )
+	{
+		m_szTypeAheadBuf[m_iNumTypeAheadChars++] = unichar;
+	}
+
+	int itemToSelect = m_iCurrentlySelectedItemID;
+	if ( itemToSelect < 0 || itemToSelect >= m_MenuItems.Count())
+	{
+		itemToSelect = 0;
+	}
+
+	int i = itemToSelect;
+	do
+	{
+		wchar_t menuItemName[255];
+		m_MenuItems[i]->GetText(menuItemName, 254);
+
+		// This is supposed to be case insensitive but we don't have a portable case
+		// insensitive wide-character routine.
+		if ( wcsncmp( m_szTypeAheadBuf, menuItemName, m_iNumTypeAheadChars) == 0 )			
+		{
+			itemToSelect = i;
+			break;			
+		}
+
+		i = (i+1) % m_MenuItems.Count();
+	} while ( i != itemToSelect );
+
+	if ( itemToSelect >= 0 )
+	{
+		SetCurrentlyHighlightedItem( itemToSelect );
+		InvalidateLayout();
+	}
+}
 
 //-----------------------------------------------------------------------------
 // Purpose: Handle key presses, Activate shortcuts
@@ -1347,36 +1516,25 @@ void Menu::OnKeyCodeTyped(KeyCode code)
 //-----------------------------------------------------------------------------
 void Menu::OnKeyTyped(wchar_t unichar)
 {
-	//
-	// NOTE - if hotkeys are ever enabled you need to work out a way to differentiate between
-	// combo box menus (which can't have hot keys) and system style menus (which do have hot keys).
-	//
-	//
-/*	if (unichar)
+	if (! unichar)
 	{
-		// iterate the menu items looking for one with the matching hotkey
-		FOR_EACH_LL( m_MenuItems, i )
-		{
-			MenuItem *panel = m_MenuItems[i];
-			if (panel->IsVisible())
-			{
-				Panel *hot = panel->HasHotkey(unichar);
-				if (hot)
-				{
-					// post a message to the menuitem telling it it's hotkey was pressed
-					PostMessage(hot, new KeyValues("Hotkey"));
-					return;
-				}
-				// if the menuitem is a cascading menuitem and it is open, check its hotkeys too
-				Menu *cascadingMenu = panel->GetMenu();
-				if (cascadingMenu && cascadingMenu->IsVisible())
-				{
-					cascadingMenu->OnKeyTyped(unichar);
-				}
-			}
-		}
+		return;
 	}
-*/
+
+	switch( m_eTypeAheadMode )
+	{
+	case HOT_KEY_MODE:
+		OnHotKey(unichar);
+		return;		
+
+	case TYPE_AHEAD_MODE:
+		OnTypeAhead(unichar);
+		return;		
+
+	case COMPAT_MODE:
+	default:
+		break;
+	}
 
 	int itemToSelect = m_iCurrentlySelectedItemID;
 	if ( itemToSelect < 0 )
@@ -1397,7 +1555,7 @@ void Menu::OnKeyTyped(wchar_t unichar)
 	{
 		 m_MenuItems[i]->GetText(menuItemName, 254);
 
-		if ( towlower(menuItemName[0]) == towlower(unichar) )
+		if ( tolower( unichar ) == tolower( menuItemName[0] ) )
 		{
 			itemToSelect = i;
 			break;			
@@ -1417,6 +1575,17 @@ void Menu::OnKeyTyped(wchar_t unichar)
 	}
 
 	// don't chain back
+}
+
+
+void Menu::SetTypeAheadMode(MenuTypeAheadMode mode)
+{
+	m_eTypeAheadMode = mode;
+}
+
+int Menu::GetTypeAheadMode()
+{
+	return m_eTypeAheadMode;
 }
 
 //-----------------------------------------------------------------------------
@@ -1646,12 +1815,12 @@ private:
 // Singleton helper class
 static CMenuManager g_MenuMgr;
 
-void ValidateMenuGlobals( CValidator &validator )
-{
-#ifdef DBGFLAG_VALIDATE
-	g_MenuMgr.Validate( validator, "g_MenuMgr" );
-#endif
-}
+//void ValidateMenuGlobals( CValidator &validator )
+//{
+//#ifdef DBGFLAG_VALIDATE
+//	g_MenuMgr.Validate( validator, "g_MenuMgr" );
+//#endif
+//}
 
 }  // end namespace vgui
 
@@ -1687,7 +1856,11 @@ void Menu::SetVisible(bool state)
 		MoveToFront();
 		RequestFocus();
 
-		g_MenuMgr.AddMenu( this );
+		// Add to menu manager?
+		if ( m_bUseMenuManager )
+		{
+			g_MenuMgr.AddMenu( this );
+		}
 	}
 	
 	// must be after movetofront()
@@ -1715,12 +1888,7 @@ void Menu::ApplySchemeSettings(IScheme *pScheme)
 			int wide, tall;
 			m_MenuItems[i]->GetCheckImageSize( wide, tall );
 
-			m_iCheckImageWidth = max ( m_iCheckImageWidth, wide );
-		}
-
-		if ( m_MenuItems[i]->HasImage() )
-		{
-			m_iCheckImageWidth = max ( m_iCheckImageWidth, m_MenuItems[i]->GetTall() );
+			m_iCheckImageWidth = MAX( m_iCheckImageWidth, wide );
 		}
 	}
 	_recalculateWidth = true;
@@ -1912,6 +2080,22 @@ void Menu::ActivateItem(int itemID)
 //-----------------------------------------------------------------------------
 // Purpose: 
 //-----------------------------------------------------------------------------
+void Menu::SilentActivateItem(int itemID)
+{
+	if ( m_MenuItems.IsValidIndex( itemID ) )
+	{
+		MenuItem *menuItem = dynamic_cast<MenuItem *>(m_MenuItems[itemID]);
+		// make sure its enabled since disabled items get highlighted.
+		if (menuItem && menuItem->IsEnabled())
+		{
+			m_iActivatedItem = itemID;
+		}
+	}
+}
+
+//-----------------------------------------------------------------------------
+// Purpose: 
+//-----------------------------------------------------------------------------
 void Menu::ActivateItemByRow(int row)
 {
 	if (m_SortedItems.IsValidIndex(row))
@@ -2068,6 +2252,8 @@ void Menu::OnKeyCodePressed(KeyCode code)
 	{
 		ivgui()->PostMessage(GetVParent(), new KeyValues("KeyModeSet"), GetVPanel());
 	}
+
+	BaseClass::OnKeyCodePressed( code );
 }
 
 //-----------------------------------------------------------------------------
@@ -2131,8 +2317,11 @@ void Menu::SetCurrentlySelectedItem(int itemID)
 void Menu::SetCurrentlyHighlightedItem(int itemID)
 {
 	SetCurrentlySelectedItem(itemID);
-	int row = GetVisibleItemIndex( m_SortedItems.Find(itemID) );
-	Assert(row != -1);
+	int row = m_SortedItems.Find(itemID);
+	// If we have no items, then row will be -1. The dev console, for example...
+	Assert( ( m_SortedItems.Count() == 0 ) || ( row != -1 ) );
+	if ( row == -1 )
+		return;
 
 	// if there is a scroll bar, and we scroll off lets move it.
 	if ( m_pScroller->IsVisible() )
@@ -2205,52 +2394,47 @@ void Menu::OnCursorExitedMenuItem(int VPanel)
 // Purpose: Move up or down one in the list of items in the menu 
 //			Direction is MENU_UP or MENU_DOWN
 //-----------------------------------------------------------------------------
-void Menu::MoveAlongMenuItemList(int direction, int loopCount, bool bArmItem)
+void Menu::MoveAlongMenuItemList(int direction, int loopCount)
 {
+	// Early out if no menu items to scroll through
+	if (m_MenuItems.Count() <= 0)
+		return;
+
 	int itemID = m_iCurrentlySelectedItemID;
 	int row = m_SortedItems.Find(itemID);
 	row += direction;
-
-	int iLastVisible = GetLastVisibleIndex();
-	int iFirstVisible = GetFirstVisibleIndex();
 	
-	if ( row > iLastVisible )
+	if ( row > m_SortedItems.Count() - 1 )
 	{
-		//if ( m_pScroller->IsVisible() )
-		//{
-		//	// stop at bottom of scrolled list
-		//	row = m_SortedItems.Count() - 1;
-		//}
-		//else
-		//{
-		//	// if no scroll bar we circle around
-		//	row = 0;
-		//}
-
-		row = iFirstVisible;
+		if ( m_pScroller->IsVisible() )
+		{
+			// stop at bottom of scrolled list
+			row = m_SortedItems.Count() - 1;
+		}
+		else
+		{
+			// if no scroll bar we circle around
+			row = 0;
+		}
 	}
-	else if (row < iFirstVisible)
+	else if (row < 0)
 	{
-		//if ( m_pScroller->IsVisible() )
-		//{
-		//	// stop at top of scrolled list
-		//	row = m_pScroller->GetValue();
-		//}
-		//else
-		//{
-		//	// if no scroll bar circle around
-		//	row = m_SortedItems.Count()-1;
-		//}
-
-		row = iLastVisible;
+		if ( m_pScroller->IsVisible() )
+		{
+			// stop at top of scrolled list
+			row = m_pScroller->GetValue();
+		}
+		else
+		{
+			// if no scroll bar circle around
+			row = m_SortedItems.Count()-1;
+		}
 	}
 
 	// if there is a scroll bar, and we scroll off lets move it.
 	if ( m_pScroller->IsVisible() )
 	{
-		int numVisible = GetVisibleItemIndex( row );
-
-		if ( numVisible > m_pScroller->GetValue() + m_iNumVisibleLines - 1)
+		if ( row > m_pScroller->GetValue() + m_iNumVisibleLines - 1)
 		{				
 			int val = m_pScroller->GetValue();
 			val -= -direction;
@@ -2262,7 +2446,7 @@ void Menu::MoveAlongMenuItemList(int direction, int loopCount, bool bArmItem)
 			// menu draws the black border to the right of the scrollbar.
 			InvalidateLayout();
 		}
-		else if ( numVisible < m_pScroller->GetValue() )
+		else if ( row < m_pScroller->GetValue() )
 		{				
 			int val = m_pScroller->GetValue();	
 			val -= -direction;
@@ -2279,10 +2463,10 @@ void Menu::MoveAlongMenuItemList(int direction, int loopCount, bool bArmItem)
 		// by hand and created a situation in which we moved an item down, but the
 		// scroll bar is already too far down and should scroll up or vice versa
 		// so just snap the scroll bar straight to the item.
-		if ( ( numVisible > m_pScroller->GetValue() + m_iNumVisibleLines - 1) ||
-			 ( numVisible < m_pScroller->GetValue() ) )
+		if ( ( row > m_pScroller->GetValue() + m_iNumVisibleLines - 1) ||
+			 ( row < m_pScroller->GetValue() ) )
 		{				
-			m_pScroller->SetValue(numVisible);	
+			m_pScroller->SetValue(row);	
 		}
 	}
 
@@ -2304,76 +2488,6 @@ void Menu::MoveAlongMenuItemList(int direction, int loopCount, bool bArmItem)
 			MoveAlongMenuItemList(direction, loopCount + 1);
 		}
 	}
-
-	if ( bArmItem )
-	{
-		if ( m_MenuItems.IsValidIndex( m_iCurrentlySelectedItemID ) )
-		{
-			m_MenuItems[m_iCurrentlySelectedItemID]->ArmItem();
-		}
-	}
-}
-
-
-int Menu::GetVisibleItemIndex( int sortedIndex )
-{
-	int numVisible = 0;
-	int findVisible = 0;
-
-	while ( m_SortedItems.IsValidIndex( findVisible ) && findVisible < sortedIndex )
-	{
-		if ( m_MenuItems.IsValidIndex( m_SortedItems[ findVisible ] ) && m_MenuItems[ m_SortedItems[ findVisible ] ]->IsVisible() )
-			numVisible++;
-
-		findVisible++;
-	}
-
-	return numVisible;
-}
-
-int Menu::GetFirstVisibleIndex()
-{
-	int findVisible = 0;
-
-	while ( m_SortedItems.IsValidIndex( findVisible ) )
-	{
-		if ( m_MenuItems.IsValidIndex( m_SortedItems[ findVisible ] ) && m_MenuItems[ m_SortedItems[ findVisible ] ]->IsVisible() )
-			return findVisible;
-
-		findVisible++;
-	}
-
-	return findVisible;
-}
-
-int Menu::GetLastVisibleIndex()
-{
-	int findVisible = 0;
-	int lastVisible = 0;
-
-	while ( findVisible >= 0 )
-	{
-		lastVisible = findVisible;
-
-		findVisible = GetNextVisible( findVisible );
-	}
-
-	return lastVisible;
-}
-
-int Menu::GetNextVisible( int sortedIndex )
-{
-	sortedIndex++;
-
-	while ( m_SortedItems.IsValidIndex( sortedIndex ) )
-	{
-		if ( m_MenuItems.IsValidIndex( m_SortedItems[ sortedIndex ] ) && m_MenuItems[ m_SortedItems[ sortedIndex ] ]->IsVisible() )
-			return sortedIndex;
-
-		sortedIndex++;
-	}
-
-	return -1;
 }
 
 //-----------------------------------------------------------------------------

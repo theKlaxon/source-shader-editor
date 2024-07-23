@@ -1,4 +1,4 @@
-//========= Copyright © 1996-2005, Valve Corporation, All rights reserved. ============//
+//========= Copyright Valve Corporation, All rights reserved. ============//
 //
 // Purpose: 
 // This class is a message box that has two buttons, ok and cancel instead of
@@ -13,10 +13,12 @@
 #include <vgui_controls/QueryBox.h>
 #include <vgui_controls/TextImage.h>
 
-#include "vgui_editor_platform.h"
-
 // memdbgon must be the last include file in a .cpp file!!!
 #include <tier0/memdbgon.h>
+
+#ifndef max
+#define max(a,b)            (((a) > (b)) ? (a) : (b))
+#endif
 
 using namespace vgui;
 
@@ -189,18 +191,30 @@ void QueryBox::SetCancelButtonText(const wchar_t* wszButtonText)
 	InvalidateLayout();
 }
 
-//-----------------------------------------------------------------------------
-// Purpose: 
-//-----------------------------------------------------------------------------
-void QueryBox::OnKeyCodeTyped(KeyCode code)
+void QueryBox::OnKeyCodeTyped( KeyCode code )
 {
-	if (code == KEY_ESCAPE)
+	if ( code == KEY_ESCAPE )
 	{
 		OnCommand("Cancel");
 	}
 	else
 	{
 		Frame::OnKeyCodeTyped(code);
+	}
+}
+
+//-----------------------------------------------------------------------------
+// Purpose: 
+//-----------------------------------------------------------------------------
+void QueryBox::OnKeyCodePressed( KeyCode code )
+{
+	if ( code == KEY_XBUTTON_B )
+	{
+		OnCommand("Cancel");
+	}
+	else
+	{
+		Frame::OnKeyCodePressed(code);
 	}
 }
 

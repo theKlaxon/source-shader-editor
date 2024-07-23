@@ -1,4 +1,4 @@
-//========= Copyright © 1996-2005, Valve Corporation, All rights reserved. ============//
+//========= Copyright Valve Corporation, All rights reserved. ============//
 //
 // Purpose: 
 //
@@ -12,6 +12,7 @@
 #pragma once
 #endif
 
+#include "annotations.h"
 #include "utlvector.h"
 #include "vgui/VGUI.h"
 #include "vgui_controls/Panel.h"
@@ -42,8 +43,8 @@ public:
 	virtual void SetText(const wchar_t *unicodeString, bool bClearUnlocalizedSymbol = false );
 
 	// Get the current text
-	virtual void GetText(char *textOut, int bufferLen);
-	virtual void GetText(wchar_t *textOut, int bufLenInBytes);
+	virtual void GetText(OUT_Z_BYTECAP(bufferLen) char *textOut, int bufferLen);
+	virtual void GetText(OUT_Z_BYTECAP(bufLenInBytes) wchar_t *textOut, int bufLenInBytes);
 
 	// Content alignment
 	// Get the size of the content within the label
@@ -68,6 +69,7 @@ public:
 	virtual void SetEnabled(bool state);
 	// Additional offset at the Start of the text (from whichever sides it is aligned)
 	virtual void SetTextInset(int xInset, int yInset);		
+	virtual void GetTextInset(int *xInset, int *yInset );
 
 	// Text colors
 	virtual void SetFgColor(Color color);
@@ -95,6 +97,7 @@ public:
 	// Hotkey
 	virtual Panel *HasHotkey(wchar_t key);
 	virtual void SetHotkey(wchar_t key);
+	virtual wchar_t GetHotKey();
 
 	// Labels can be associated with controls, and alter behaviour based on the associates behaviour
 	// If the associate is disabled, so are we
@@ -152,6 +155,8 @@ public:
 	void SetWrap( bool bWrap );
 	void SetCenterWrap( bool bWrap );
 
+	void SetAllCaps( bool bAllCaps );
+
 protected:
 	virtual void PerformLayout();
 	virtual wchar_t CalculateHotkey(const char *text);
@@ -168,6 +173,7 @@ protected:
 	// makes sure that the maxIndex will be a valid index
 	virtual void EnsureImageCapacity(int maxIndex);
 
+public:
 	// editing
 	virtual void ApplySchemeSettings(IScheme *pScheme);
 	virtual void GetSettings( KeyValues *outResourceData );
@@ -175,6 +181,8 @@ protected:
 	virtual const char *GetDescription( void );
 
 	MESSAGE_FUNC_PARAMS( OnDialogVariablesChanged, "DialogVariables", dialogVariables );
+
+	void HandleAutoSizing( void );
 
 private:
 	void Init();
@@ -207,6 +215,11 @@ private:
 
 	bool	m_bWrap;
 	bool	m_bCenterWrap;
+	bool	m_bAllCaps;
+	bool	m_bAutoWideToContents;
+	bool	m_bAutoWideDirty;
+	bool	m_bUseProportionalInsets;
+
 };
 
 } // namespace vgui

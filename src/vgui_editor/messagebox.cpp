@@ -1,4 +1,4 @@
-//========= Copyright © 1996-2005, Valve Corporation, All rights reserved. ============//
+//========= Copyright Valve Corporation, All rights reserved. ============//
 //
 // Purpose: 
 //
@@ -14,12 +14,14 @@
 #include <vgui_controls/Label.h>
 #include <vgui_controls/MessageBox.h>
 
-#include "vgui_editor_platform.h"
-
 // memdbgon must be the last include file in a .cpp file!!!
 #include <tier0/memdbgon.h>
 
 using namespace vgui;
+
+#ifndef max
+#define max(a,b)            (((a) > (b)) ? (a) : (b))
+#endif
 
 vgui::Panel *MessageBox_Factory()
 {
@@ -276,7 +278,7 @@ void MessageBox::PerformLayout()
 
 	GetSize(boxWidth, boxTall);
 
-	m_pMessageLabel->SetPos((wide/2)-(m_pMessageLabel->GetWide()/2) + x, y + 15);
+	m_pMessageLabel->SetPos((wide/2)-(m_pMessageLabel->GetWide()/2) + x, y + 5 );
 	if ( !m_pCancelButton->IsVisible() )
 	{
 		m_pOkButton->SetPos((wide/2)-(m_pOkButton->GetWide()/2) + x, tall - m_pOkButton->GetTall() - 15);

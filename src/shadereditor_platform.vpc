@@ -8,7 +8,7 @@
 $Macro TARGET_SRC_DIRECTORY "<PATH TO YOUR GAMES SOURCE ROOT>" // example: C:\sourcesdk2013\sp\src
 
 // Specify target SDK version. Only enable one of them.
-$Conditional "TARGET_PLATFORM_2013" 1
+$Conditional "TARGET_PLATFORM_2013" 0
 
 // integration untested, but supported by the code:
 $Conditional "TARGET_PLATFORM_SWARM" 0
@@ -16,7 +16,7 @@ $Conditional "TARGET_PLATFORM_2007" 0
 $Conditional "TARGET_PLATFORM_2006" 0
 
 // not fully integrated:
-$Conditional "TARGET_PLATFORM_PORTAL2" 0
+$Conditional "TARGET_PLATFORM_PORTAL2" 1
 
 // Specify game root.
 $Macro TARGET_GAME_DIRECTORY "<PATH TO YOUR GAME>" // example: C:\Steam\steamapps\sourcemods\mygame

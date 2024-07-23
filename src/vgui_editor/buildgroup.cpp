@@ -44,8 +44,6 @@
 #include "xbox/xbox_win32stubs.h"
 #endif
 
-#include "vgui_editor_platform.h"
-
 // memdbgon must be the last include file in a .cpp file!!!
 #include <tier0/memdbgon.h>
 
@@ -311,8 +309,8 @@ bool BuildGroup::CursorMoved(int x, int y, Panel *panel)
 		
 		if (_dragMouseCode == MOUSE_RIGHT)
 		{
-			int newW = max( 1, _dragStartPanelSize[ 0 ] + x - _dragStartCursorPos[0] );
-			int newH = max( 1, _dragStartPanelSize[ 1 ] + y - _dragStartCursorPos[1] );
+			int newW = MAX( 1, _dragStartPanelSize[ 0 ] + x - _dragStartCursorPos[0] );
+			int newH = MAX( 1, _dragStartPanelSize[ 1 ] + y - _dragStartCursorPos[1] );
 
 			bool shift = ( input()->IsKeyDown(KEY_LSHIFT) || input()->IsKeyDown(KEY_RSHIFT) );
 			bool ctrl = ( input()->IsKeyDown(KEY_LCONTROL) || input()->IsKeyDown(KEY_RCONTROL) );
@@ -885,19 +883,19 @@ void BuildGroup::LoadControlSettings(const char *controlResourceName, const char
 		bool bSuccess = false;
 		if (!pathID)
 		{
-			bSuccess = rDat->LoadFromFile(g_pFullFileSystem, controlResourceName, "SKIN");
+			bSuccess = rDat->LoadFromFile(g_pFullFileSystem, controlResourceName, "SKIN"); // was EX
 		}
 		if (!bSuccess)
 		{
-			bSuccess = rDat->LoadFromFile(g_pFullFileSystem, controlResourceName, pathID);
+			bSuccess = rDat->LoadFromFile(g_pFullFileSystem, controlResourceName, pathID); // was EX
 		}
 
 		if ( bSuccess )
 		{
-			if ( IsX360() )
-			{
-				rDat->ProcessResolutionKeys( surface()->GetResolutionKey() );
-			}
+			//if ( IsX360() )
+			//{
+			//	rDat->ProcessResolutionKeys( surface()->GetResolutionKey() );
+			//}
 			if ( IsPC() )
 			{
 				ConVarRef cl_hud_minmode( "cl_hud_minmode", true );
@@ -1200,7 +1198,8 @@ void BuildGroup::ApplySettings( KeyValues *resourceData )
 		if ( !bFound )
 		{
 			// the key was not found in the registered list, check to see if we should create it
-			if ( keyName /*controlKeys->GetInt("AlwaysCreate", false)*/ )
+			//if ( keyName /*controlKeys->GetInt("AlwaysCreate", false)*/ )
+			if ( controlKeys->GetInt("AlwaysCreate", false) )
 			{
 				// create the control even though it wasn't registered
 				NewControl( controlKeys );

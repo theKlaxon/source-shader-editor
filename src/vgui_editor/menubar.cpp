@@ -1,4 +1,4 @@
-//========= Copyright © 1996-2005, Valve Corporation, All rights reserved. ============//
+//========= Copyright Valve Corporation, All rights reserved. ============//
 //
 // Purpose: 
 //
@@ -17,8 +17,6 @@
 #include <vgui_controls/MenuButton.h>
 #include <vgui_controls/Label.h>
 #include <vgui_controls/Controls.h>
-
-#include "vgui_editor_platform.h"
 
 // memdbgon must be the last include file in a .cpp file!!!
 #include <tier0/memdbgon.h>
@@ -187,17 +185,15 @@ void MenuBar::PerformLayout()
 
 	// Now position + resize all buttons
 	int x = MENUBARINDENT;
-	int minsizex = 54;
 	for ( int i = 0; i < m_pMenuButtons.Count(); ++i )
 	{
 		int nWide, nTall;
 
 		m_pMenuButtons[i]->GetContentSize(nWide, nTall);
 		m_pMenuButtons[i]->SetPos( x, MENUBARINDENT );
-		int sizex = max( nWide + Label::Content, minsizex );
-		m_pMenuButtons[i]->SetSize( sizex, nBarHeight - 2 * MENUBARINDENT );
-		m_pMenuButtons[i]->SetContentAlignment( vgui::Label::a_center );
-		x += sizex;
+		m_pMenuButtons[i]->SetSize( nWide + Label::Content, nBarHeight - 2 * MENUBARINDENT );
+
+		x += nWide + MENUBARINDENT;
 	}
 
 	m_nRightEdge = x;

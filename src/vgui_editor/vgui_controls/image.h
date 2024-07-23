@@ -43,6 +43,12 @@ public:
 	virtual void SetBkColor( Color color ) { DrawSetColor( color ); }
 	// Get the draw color 
 	virtual Color GetColor();
+
+	// TODO: GetTall();
+	virtual float GetTall();
+	// TODO: GetWide();
+	virtual float GetWide();
+
 	virtual bool Evict();
 	virtual int GetNumFrames();
 	virtual void SetFrame( int nFrame );

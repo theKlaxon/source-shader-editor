@@ -1,4 +1,4 @@
-//========= Copyright © 1996-2005, Valve Corporation, All rights reserved. ============//
+//========= Copyright Valve Corporation, All rights reserved. ============//
 //
 // Purpose: 
 //
@@ -12,6 +12,7 @@
 
 #include <vgui_controls/Panel.h>
 #include <vgui_controls/PHandle.h>
+#include <KeyValues.h>
 
 #include "tier1/utlsymbol.h"
 #include "tier1/utlvector.h"
@@ -39,6 +40,8 @@ public:
 
 	// runs a frame of animation (time is passed in so slow motion, etc. works)
 	void UpdateAnimations( float curtime );
+	
+	int	 GetNumActiveAnimations( void ) { return m_ActiveAnimations.Count(); }
 
 	// plays all animations to completion instantly
 	void RunAllAnimationsToCompletion();
@@ -65,6 +68,7 @@ public:
 		INTERPOLATOR_PULSE,
 		INTERPOLATOR_FLICKER,
 		INTERPOLATOR_SIMPLESPLINE, // ease in / out
+		INTERPOLATOR_BOUNCE,	   // gravitational bounce
 	};
 
 	// runs the specific animation command (doesn't use script file at all)
