@@ -65,3 +65,5 @@ config.cfg
 /src/shadereditor/Release_shader_editor*
 /src/vgui_editor/Debug*
 /src/vgui_editor/Release*
+
+shadereditor_platform.vpc
